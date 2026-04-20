@@ -1,0 +1,13 @@
+{
+  "checks": [
+    {
+      "type": "HTTP",
+      "endpoint": "/health"
+    },
+    {
+      "type": "LogGrep",
+      "endpoint": "/logs",
+      "error_pattern": "chaos injected"
+    }
+  ]
+}

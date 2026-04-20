@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cluster Health Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0b0f19;
+            --bg-surface: rgba(17, 24, 39, 0.75);
+            --bg-card: rgba(31, 41, 55, 0.6);
+            --border-glow: rgba(255, 255, 255, 0.08);
+            
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --neutral: #6b7280;
+
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(239, 68, 68, 0.05), transparent 25%);
+        }
+
+        /* Sidebar */
+        aside {
+            width: 280px;
+            background: var(--bg-surface);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-glow);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-logo {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 6px;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .global-status-panel {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-glow);
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+        }
+
+        .status-ring {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid var(--neutral);
+            transition: all 0.5s ease;
+        }
+        
+        .status-ring.Healthy { border-color: var(--success); box-shadow: 0 0 30px rgba(16, 185, 129, 0.15); }
+        .status-ring.Degraded { border-color: var(--warning); box-shadow: 0 0 30px rgba(245, 158, 11, 0.15); }
+        .status-ring.Critical { border-color: var(--danger); box-shadow: 0 0 30px rgba(239, 68, 68, 0.15); }
+
+        .status-text-large { font-size: 1.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;}
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 3rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 2rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+            background: var(--neutral);
+            transition: background 0.3s;
+        }
+        .card.card-Healthy::before { background: var(--success); box-shadow: 0 0 10px var(--success); }
+        .card.card-Degraded::before { background: var(--warning); box-shadow: 0 0 10px var(--warning); }
+        .card.card-Critical::before { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+
+        .card:hover {
+            transform: translateY(-5px);
+            background: rgba(40, 53, 72, 0.8);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+        }
+        
+        .node-name { font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 8px;}
+        .server-icon { font-size: 1.2rem; opacity: 0.8; }
+
+        .history-track {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid var(--border-glow);
+        }
+        .history-dot {
+            width: 14px; height: 14px; border-radius: 3px;
+        }
+        
+        .check-box {
+            background: rgba(0,0,0,0.25);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            border-left: 3px solid transparent;
+        }
+
+        .log-terminal {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #a3e635;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-top: 10px;
+            border: 1px solid #333;
+        }
+        
+        .tc-Healthy { color: var(--success); }
+        .tc-Degraded { color: var(--warning); }
+        .tc-Critical { color: var(--danger); }
+
+        .bg-Healthy { background: var(--success); }
+        .bg-Degraded { background: var(--warning); }
+        .bg-Critical { background: var(--danger); }
+
+        .pulse-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        /* Live Event Log */
+        .event-log {
+            margin-top: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 1.2rem;
+            max-height: 250px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            border: 1px solid var(--border-glow);
+        }
+        .event-entry {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            gap: 8px;
+            line-height: 1.4;
+        }
+        .event-time { color: var(--text-muted); font-size: 0.75rem; min-width: 65px;}
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="brand">
+            <div class="brand-logo"></div>
+            OpsCenter
+        </div>
+        
+        <div class="global-status-panel">
+            <div class="status-ring Critical" id="globalRing">
+                <div class="pulse-dot bg-Critical" id="globalPulse"></div>
+            </div>
+            <div class="status-text-large tc-Critical" id="globalText">Unknown</div>
+            <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px;">CLUSTER STATE</div>
+        </div>
+
+        <div class="event-log" id="eventLog" style="flex:1;">
+            <div style="color: var(--text-muted); margin-bottom:12px; font-weight:700; letter-spacing: 1px; font-size: 0.75rem;">LIVE EVENTS ACTIVITY</div>
+            <!-- Event stream -->
+        </div>
+
+        <div style="margin-top: auto;">
+            <div style="color: var(--text-muted); margin-bottom:8px; font-weight:700; font-size:0.75rem;">AUTO SCALE (KUBELET)</div>
+            <button onclick="autoScale()" style="width:100%; background:var(--success); color:#000; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer; letter-spacing:1px; margin-bottom:1.5rem; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">DEPLOY INSTANCE</button>
+
+            <div style="color: var(--text-muted); margin-bottom:8px; font-weight:700; font-size:0.75rem;">CLUSTER REGISTRY</div>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="newWorkerUrl" placeholder="http://worker-4:8080" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border-glow); background:rgba(0,0,0,0.3); color:white; font-size:0.8rem;">
+                <button onclick="addWorker()" style="background:var(--success); color:#000; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; cursor:pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">ADD</button>
+            </div>
+        </div>
+    </aside>
+
+    <main>
+        <header>
+            <div>
+                <h2 style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;">Infrastructure Nodes</h2>
+                <p style="color: var(--text-muted); font-size: 1.1rem;">Real-time health polling across all worker instances</p>
+            </div>
+            <div style="font-size: 0.9rem; color: var(--text-muted); display:flex; align-items:center; gap: 8px; background: rgba(0,0,0,0.3); padding: 8px 16px; border-radius: 20px;">
+                <div style="width:8px;height:8px;background:var(--success);border-radius:50%;"></div>
+                Polling /status every 2 seconds
+            </div>
+        </header>
+
+        <div class="grid" id="nodesGrid">
+            <!-- Cards Generated Dynamically -->
+        </div>
+    </main>
+
+    <script>
+        const knownStates = {}; // Track previous state for event logging
+        let lastAlertCount = 0;
+
+        async function injectFault(nodeURL) {
+            try {
+                addEvent(`Controlled Chaos: Firing fault on ${nodeURL.replace('http://', '')}!`, "Degraded");
+                await fetch('/inject-fault?node=' + encodeURIComponent(nodeURL));
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function autoScale() {
+            try {
+                addEvent(`Auto-scaler triggered! Spawning node...`, "Degraded");
+                await fetch('/auto-scale', { method: 'POST' });
+            } catch (e) { console.error(e); }
+        }
+
+        async function addWorker() {
+            let url = document.getElementById('newWorkerUrl').value.trim();
+            if (!url) return;
+            
+            // Auto-prepend http:// if missing
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'http://' + url;
+            }
+
+            try {
+                await fetch('/workers?url=' + encodeURIComponent(url), { method: 'POST' });
+                addEvent(`Registered new node definition: ${url}`, "Healthy");
+                document.getElementById('newWorkerUrl').value = '';
+            } catch (e) { console.error(e); }
+        }
+
+        async function removeWorker(url) {
+            try {
+                await fetch('/workers?url=' + encodeURIComponent(url), { method: 'DELETE' });
+                addEvent(`Decommissioned node ${url}`, "Critical");
+            } catch (e) { console.error(e); }
+        }
+
+        function addEvent(msg, type) {
+            const log = document.getElementById('eventLog');
+            const entry = document.createElement('div');
+            entry.className = "event-entry";
+            
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+            entry.innerHTML = `<span class="event-time">[${time}]</span> <span class="tc-${type}">${msg}</span>`;
+            
+            log.insertBefore(entry, log.children[1]); // insert after the title
+            if (log.children.length > 25) log.removeChild(log.lastChild);
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+                renderDashboard(data);
+            } catch (error) {
+                console.error("Fetch err", error);
+            }
+        }
+
+        function renderDashboard(data) {
+            const clusterStatus = data.cluster_status || "Critical";
+            
+            // Global Updates
+            document.getElementById('globalRing').className = `status-ring ${clusterStatus}`;
+            document.getElementById('globalPulse').className = `pulse-dot bg-${clusterStatus}`;
+            document.getElementById('globalText').innerText = clusterStatus;
+            document.getElementById('globalText').className = `status-text-large tc-${clusterStatus}`;
+
+            // PagerDuty Simulator Event Hook
+            if (data.alerts && data.alerts.length > 0) {
+                if (data.alerts.length !== lastAlertCount) {
+                    if (lastAlertCount !== 0) {
+                        const newEvent = data.alerts[0]; // Front of array
+                        addEvent(`[PAGERDUTY] ${newEvent.message}`, newEvent.type);
+                    }
+                    lastAlertCount = data.alerts.length;
+                }
+            }
+
+            const grid = document.getElementById('nodesGrid');
+            if (grid.children.length === 0) {
+                Object.keys(data.nodes).sort().forEach(key => {
+                    const card = document.createElement('div');
+                    card.className = "card card-Pending";
+                    card.id = `card-${key}`;
+                    grid.appendChild(card);
+                    knownStates[key] = "Pending";
+                });
+            }
+
+            // Detect deleted nodes securely based on DOM
+            const domNodes = Array.from(grid.children);
+            domNodes.forEach(child => {
+                const url = child.id.replace('card-', '');
+                if (!data.nodes[url]) {
+                    grid.removeChild(child);
+                    delete knownStates[url];
+                }
+            });
+
+            Object.keys(data.nodes).sort().forEach(key => {
+                const node = data.nodes[key];
+                let card = document.getElementById(`card-${key}`);
+                
+                // If it's a completely new node that isn't in DOM yet, append it dynamically
+                if (!card) {
+                    card = document.createElement('div');
+                    card.className = "card card-Pending";
+                    card.id = `card-${key}`;
+                    grid.appendChild(card);
+                    knownStates[key] = "Pending";
+                }
+                
+                // Trigger events on state change
+                if (knownStates[key] !== node.status && knownStates[key] !== "Pending") {
+                    if (node.status === "Healthy") addEvent(`${key.replace('http://','')} recovered and is online`, "Healthy");
+                    if (node.status === "Degraded" || node.status === "Critical") addEvent(`${key.replace('http://','')} entered ${node.status} state`, "Critical");
+                }
+                knownStates[key] = node.status;
+
+                let historyHtml = '';
+                node.history.forEach(isHealthy => {
+                    historyHtml += `<div class="history-dot bg-${isHealthy ? 'Healthy' : 'Critical'}"></div>`;
+                });
+                
+                let checksHtml = '';
+                Object.entries(node.results).forEach(([checkName, check]) => {
+                    const isGrep = checkName.includes("Log Grep");
+                    const title = isGrep ? "Log Stream Analysis Target" : "HTTP TCP Ping Target";
+                    
+                    checksHtml += `
+                        <div class="check-box" style="border-left-color: var(--${check.healthy ? 'success' : 'danger'})">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <strong>${title}</strong>
+                                <span class="tc-${check.healthy ? 'Healthy' : 'Critical'}" style="font-weight:700;">${check.healthy ? 'PASS' : 'FAIL'}</span>
+                            </div>
+                            ${isGrep && !check.healthy ? `<div class="log-terminal" style="word-break: break-all;">> ${check.message}</div>` : `<div style="color:var(--text-muted); font-size:0.85rem; word-break: break-all;">Status: ${check.message}</div>`}
+                        </div>
+                    `;
+                });
+
+                const formattedName = key.replace('http://', '').toUpperCase();
+
+                card.className = `card card-${node.status}`;
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="node-name">
+                            <span class="server-icon">🖥️</span>
+                            ${formattedName}
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button onclick="injectFault('${key}')" style="background:transparent; border:1px solid #ef4444; color:#ef4444; border-radius:4px; padding:3px 6px; cursor:pointer; font-size:0.7rem; font-weight:700; transition:all 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.2)'" onmouseout="this.style.background='transparent'">Inject Fault</button>
+                            <button onclick="removeWorker('${key}')" style="background:var(--danger); border:none; color:white; border-radius:4px; padding:4px 6px; cursor:pointer; font-size:0.7rem; font-weight:700; transition:all 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">DEL</button>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap: 12px;">
+                            <div style="display:flex; align-items:center; gap: 8px;">
+                                <span class="pulse-dot bg-${node.status}" style="display:inline-block; animation:none; opacity:1; transform:scale(1)"></span>
+                                <span class="tc-${node.status}" style="font-weight:700; font-size:1.1rem;">${node.status.toUpperCase()}</span>
+                            </div>
+                            <div class="history-track" title="Flapping History (Last 5 Checks)">
+                                ${historyHtml || `<span style="font-size:0.7rem;color:var(--text-muted);padding:0 3px;">Awaiting Data</span>`}
+                            </div>
+                        </div>
+                        <div style="text-align: right; background: rgba(0,0,0,0.3); padding:4px 10px; border-radius:6px; border:1px solid var(--border-glow);">
+                            <div style="color:var(--text-muted); font-size: 0.65rem; letter-spacing: 1px; font-weight:700;">TOTAL HANDLED</div>
+                            <div style="font-size: 1.25rem; font-weight:700; color: ${node.status === 'Healthy' && node.traffic > 0 ? 'var(--success)' : 'var(--text-muted)'}; text-shadow: ${node.status === 'Healthy' && node.traffic > 0 ? '0 0 10px rgba(16,185,129,0.3)' : 'none'}; font-family: monospace; transition: all 0.3s;">
+                                ${node.traffic || 0}
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        ${checksHtml}
+                    </div>
+                `;
+            });
+        }
+
+        fetchStatus();
+        setInterval(fetchStatus, 2000);
+        
+        // Intelligent Reverse Proxy Traffic Simulator
+        setInterval(() => {
+            fetch('/proxy/work').catch(()=>{}); // Fire and forget
+        }, 200);
+
+        addEvent("Cluster monitoring initialized", "Healthy");
+    </script>
+</body>
+</html>

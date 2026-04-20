@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  controller:
+    build: ./controller
+    ports:
+      - "9090:9090"
+    environment:
+      - WORKERS=http://worker-1:8080,http://worker-2:8080,http://worker-3:8080
+    depends_on:
+      - worker-1
+      - worker-2
+      - worker-3
+      - worker-4
+      - worker-5
+
+  worker-1:
+    build: ./worker
+    environment:
+      - PORT=8080
+      - CHAOS_LEVEL=0
+
+  worker-2:
+    build: ./worker
+    environment:
+      - PORT=8080
+      - CHAOS_LEVEL=0
+
+  worker-3:
+    build: ./worker
+    environment:
+      - PORT=8080
+      - CHAOS_LEVEL=40 # This node will randomly fail checks
+
+  worker-4:
+    build: ./worker
+    environment:
+      - PORT=8080
+      - CHAOS_LEVEL=0
+
+  worker-5:
+    build: ./worker
+    environment:
+      - PORT=8080
+      - CHAOS_LEVEL=0
